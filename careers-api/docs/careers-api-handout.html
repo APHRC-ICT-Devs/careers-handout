@@ -1,0 +1,498 @@
+<title>Careers API — Meeting Hand-out</title>
+<style>
+  :root {
+    --paper: #FCFDFB;
+    --ink: #1D231D;
+    --muted: #5C665A;
+    --accent: #4E8C2B;
+    --accent-bright: #7BC148;
+    --rule: #E2E8DE;
+    --card: #F4F7F1;
+    --code-bg: #EFF3EB;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #141814;
+      --ink: #E7ECE4;
+      --muted: #9AA694;
+      --accent: #8FCB5E;
+      --accent-bright: #7BC148;
+      --rule: #2A322A;
+      --card: #1B211B;
+      --code-bg: #202820;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #141814;
+    --ink: #E7ECE4;
+    --muted: #9AA694;
+    --accent: #8FCB5E;
+    --accent-bright: #7BC148;
+    --rule: #2A322A;
+    --card: #1B211B;
+    --code-bg: #202820;
+  }
+  :root[data-theme="light"] {
+    --paper: #FCFDFB;
+    --ink: #1D231D;
+    --muted: #5C665A;
+    --accent: #4E8C2B;
+    --accent-bright: #7BC148;
+    --rule: #E2E8DE;
+    --card: #F4F7F1;
+    --code-bg: #EFF3EB;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 15px/1.55 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .page {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 40px 28px 56px;
+  }
+
+  header { border-bottom: 3px solid var(--accent-bright); padding-bottom: 20px; margin-bottom: 28px; }
+  .eyebrow {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 6px;
+  }
+  h1 { font-size: 26px; line-height: 1.2; margin: 0 0 16px; text-wrap: balance; }
+
+  .hero-flow { display: flex; align-items: stretch; gap: 8px; margin: 0 0 14px; flex-wrap: wrap; }
+  .hf-step {
+    flex: 1 1 170px; background: var(--card); border: 1px solid var(--rule); border-radius: 8px;
+    padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; justify-content: center;
+  }
+  .hf-step strong { font-size: 14.5px; }
+  .hf-step span { font-size: 12.5px; color: var(--muted); }
+  .hf-arrow { align-self: center; color: var(--accent-bright); font-weight: 700; font-size: 20px; flex: 0 0 auto; }
+  .hero-badges { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0; padding: 0; }
+  .hero-badges li {
+    font-size: 12.5px; color: var(--muted); border: 1px solid var(--rule); border-radius: 999px;
+    padding: 4px 13px; display: flex; gap: 7px; align-items: center;
+  }
+  .hero-badges li::before { content: "✓"; color: var(--accent); font-weight: 700; }
+
+  h2 {
+    font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--accent); margin: 32px 0 12px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  h2::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+
+  code, .mono {
+    font-family: ui-monospace, "Cascadia Code", Consolas, Menlo, monospace;
+    font-size: 0.92em;
+  }
+  code { background: var(--code-bg); padding: 1px 5px; border-radius: 3px; }
+
+  .endpoint {
+    background: var(--card); border: 1px solid var(--rule); border-radius: 6px;
+    padding: 14px 16px; overflow-x: auto;
+  }
+  .endpoint .mono { white-space: nowrap; font-size: 14px; }
+  .endpoint .note { color: var(--muted); font-size: 13px; margin-top: 6px; }
+
+  .verbs { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px; }
+  .verb {
+    flex: 1 1 280px; border: 1px solid var(--rule); border-radius: 6px; padding: 14px 16px;
+  }
+  .verb .tag {
+    display: inline-block; font-family: ui-monospace, Consolas, monospace; font-weight: 700;
+    font-size: 13px; color: var(--paper); background: var(--accent); border-radius: 4px;
+    padding: 2px 8px; margin-bottom: 8px;
+  }
+  .verb.danger .tag { background: var(--muted); }
+  .verb p { margin: 0; font-size: 14px; }
+  .verb p + p { margin-top: 6px; color: var(--muted); font-size: 13px; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  .table-wrap { overflow-x: auto; }
+  th, td { text-align: left; padding: 7px 12px 7px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  td:first-child { font-family: ui-monospace, Consolas, monospace; font-size: 13px; white-space: nowrap; }
+  .req { color: var(--accent); font-weight: 600; }
+  .opt { color: var(--muted); }
+
+  ol.flow { margin: 0; padding-left: 22px; }
+  ol.flow li { margin-bottom: 5px; }
+  ol.flow li::marker { color: var(--accent); font-weight: 700; }
+
+  .callout {
+    border-left: 3px solid var(--accent-bright); background: var(--card);
+    padding: 10px 14px; border-radius: 0 6px 6px 0; font-size: 14px; margin: 14px 0;
+  }
+  .callout strong { color: var(--accent); }
+
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 620px) { .cols { grid-template-columns: 1fr; } }
+  .checklist { border: 1px solid var(--rule); border-radius: 6px; padding: 14px 16px; }
+  .checklist h3 { margin: 0 0 10px; font-size: 14px; }
+  .checklist ul { margin: 0; padding: 0; list-style: none; }
+  .checklist li { padding-left: 22px; position: relative; margin-bottom: 7px; font-size: 14px; }
+  .checklist li::before {
+    content: ""; position: absolute; left: 0; top: 4px; width: 12px; height: 12px;
+    border: 1.5px solid var(--accent); border-radius: 3px;
+  }
+
+  footer { margin-top: 36px; padding-top: 14px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 12px; }
+
+  .diagram { margin-top: 4px; }
+  .diagram svg { width: 100%; height: auto; display: block; }
+  .diagram text { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .diag-box { fill: var(--card); stroke: var(--rule); stroke-width: 1.5; }
+  .diag-title { fill: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; }
+  .diag-step { fill: var(--ink); font-size: 13.5px; }
+  .diag-sub { fill: var(--muted); font-size: 11px; }
+  .diag-wire { fill: var(--accent); font-size: 11px; font-weight: 700; }
+  .diag-line { stroke: var(--accent); stroke-width: 2; fill: none; }
+  .diag-line-m { stroke: var(--muted); stroke-width: 1.6; stroke-dasharray: 5 4; fill: none; }
+  .arr-head { fill: var(--accent); }
+  .arr-head-m { fill: var(--muted); }
+  .diag-num { fill: var(--accent); }
+  .diag-num-t { fill: var(--paper); font-size: 11px; font-weight: 700; }
+  .diag-tab-on { fill: var(--accent-bright); }
+  .diag-tab-on-t { fill: #fff; font-size: 12px; font-weight: 600; }
+  .diag-tab-off { fill: none; stroke: var(--rule); stroke-width: 1.2; }
+  .diag-tab-off-t { fill: var(--muted); font-size: 12px; font-weight: 600; }
+  .diag-caption { color: var(--muted); font-size: 12px; margin: 8px 0 0; text-align: center; }
+  .diag-main { fill: var(--ink); font-size: 14px; font-weight: 600; }
+  .diag-rejbox { fill: transparent; stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 5 4; }
+
+  @media print {
+    body { font-size: 12px; }
+    .page { padding: 0; max-width: none; }
+    h1 { font-size: 20px; }
+    h2 { margin-top: 18px; }
+    .verb, .checklist, .endpoint, .callout, .diagram, .hero-flow { break-inside: avoid; }
+  }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">APHRC &middot; Careers API &middot; WordPress ⇄ Dynamics &middot; 8 July 2026</p>
+    <h1>Careers API: Job Ads Integration — One-Page Reference</h1>
+
+    <div class="hero-flow">
+      <div class="hf-step">
+        <strong>HR approves</strong>
+        <span>in the Dynamics job portal</span>
+      </div>
+      <div class="hf-arrow">→</div>
+      <div class="hf-step">
+        <strong>Dynamics pushes the ad</strong>
+        <span>one secure call to WordPress</span>
+      </div>
+      <div class="hf-arrow">→</div>
+      <div class="hf-step">
+        <strong>Live on the careers page</strong>
+        <span>moments later, automatically</span>
+      </div>
+    </div>
+
+    <ul class="hero-badges">
+      <li>Push-based — no polling</li>
+      <li>No second approval in WordPress</li>
+      <li>Standalone plugin — production mel API untouched</li>
+    </ul>
+  </header>
+
+  <h2>The flow at a glance</h2>
+  <div class="diagram">
+    <svg viewBox="0 0 760 430" role="img" aria-label="System diagram: HR approves a job in Dynamics; the integration maps it to JSON and sends it over HTTPS to the WordPress Careers API, which verifies, validates, matches by job ID, publishes the ad, and refreshes the careers page. A receipt returns to Dynamics.">
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" class="arr-head"/>
+        </marker>
+        <marker id="arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" class="arr-head-m"/>
+        </marker>
+      </defs>
+
+      <!-- Dynamics -->
+      <rect class="diag-box" x="6" y="44" width="330" height="176" rx="10"/>
+      <text class="diag-title" x="171" y="70" text-anchor="middle">MS DYNAMICS JOB PORTAL</text>
+
+      <circle class="diag-num" cx="32" cy="100" r="11"/>
+      <text class="diag-num-t" x="32" y="104" text-anchor="middle">1</text>
+      <text class="diag-step" x="52" y="97">HR approves the job ad</text>
+      <text class="diag-sub" x="52" y="113">the only approval step</text>
+
+      <circle class="diag-num" cx="32" cy="142" r="11"/>
+      <text class="diag-num-t" x="32" y="146" text-anchor="middle">2</text>
+      <text class="diag-step" x="52" y="139">Reads the job internally</text>
+      <text class="diag-sub" x="52" y="155">via OData</text>
+
+      <circle class="diag-num" cx="32" cy="186" r="11"/>
+      <text class="diag-num-t" x="32" y="190" text-anchor="middle">3</text>
+      <text class="diag-step" x="52" y="183">Maps its field names to</text>
+      <text class="diag-step" x="52" y="200">the 5-field JSON contract</text>
+
+      <!-- wire: Dynamics -> WordPress -->
+      <path class="diag-line" d="M338 108 H420" marker-end="url(#arr)"/>
+      <text class="diag-wire" x="379" y="92" text-anchor="middle">PUT / DELETE</text>
+      <text class="diag-sub" x="379" y="126" text-anchor="middle">JSON · HTTPS</text>
+      <text class="diag-sub" x="379" y="140" text-anchor="middle">Basic auth</text>
+
+      <!-- wire: receipt back -->
+      <path class="diag-line-m" d="M420 180 H342" marker-end="url(#arr-m)"/>
+      <text class="diag-sub" x="381" y="166" text-anchor="middle">receipt 200 / 201</text>
+      <text class="diag-sub" x="381" y="198" text-anchor="middle">retry only on 5xx</text>
+      <text class="diag-sub" x="381" y="212" text-anchor="middle">(server errors)</text>
+
+      <!-- WordPress -->
+      <rect class="diag-box" x="424" y="44" width="330" height="252" rx="10"/>
+      <text class="diag-title" x="589" y="70" text-anchor="middle">WORDPRESS · CAREERS API PLUGIN</text>
+
+      <circle class="diag-num" cx="450" cy="104" r="11"/>
+      <text class="diag-num-t" x="450" y="108" text-anchor="middle">4</text>
+      <text class="diag-step" x="470" y="101">Verifies password &amp; role</text>
+      <text class="diag-sub" x="470" y="117">401 / 403 if not</text>
+
+      <circle class="diag-num" cx="450" cy="152" r="11"/>
+      <text class="diag-num-t" x="450" y="156" text-anchor="middle">5</text>
+      <text class="diag-step" x="470" y="149">Validates &amp; sanitizes the ad</text>
+      <text class="diag-sub" x="470" y="165">whole request rejected (400) if invalid</text>
+
+      <circle class="diag-num" cx="450" cy="200" r="11"/>
+      <text class="diag-num-t" x="450" y="204" text-anchor="middle">6</text>
+      <text class="diag-step" x="470" y="197">Finds the ad by its job ID</text>
+      <text class="diag-sub" x="470" y="213">any status — never duplicates</text>
+
+      <circle class="diag-num" cx="450" cy="248" r="11"/>
+      <text class="diag-num-t" x="450" y="252" text-anchor="middle">7</text>
+      <text class="diag-step" x="470" y="245">Publishes / updates / trashes</text>
+      <text class="diag-sub" x="470" y="261">the career post</text>
+
+      <!-- wire: WordPress -> careers page (elbow) -->
+      <path class="diag-line" d="M520 300 V346 H342" marker-end="url(#arr)"/>
+      <text class="diag-sub" x="436" y="336" text-anchor="middle">save event flushes the page cache</text>
+
+      <!-- Careers page -->
+      <rect class="diag-box" x="6" y="266" width="330" height="152" rx="10"/>
+      <text class="diag-title" x="171" y="292" text-anchor="middle">CAREERS PAGE</text>
+
+      <circle class="diag-num" cx="32" cy="322" r="11"/>
+      <text class="diag-num-t" x="32" y="326" text-anchor="middle">8</text>
+      <text class="diag-step" x="52" y="319">Ad visible at once</text>
+      <text class="diag-sub" x="52" y="335">cached page rebuilt on save</text>
+
+      <rect class="diag-tab-on" x="52" y="350" width="62" height="24" rx="7"/>
+      <text class="diag-tab-on-t" x="83" y="366" text-anchor="middle">Open</text>
+      <rect class="diag-tab-off" x="122" y="350" width="70" height="24" rx="7"/>
+      <text class="diag-tab-off-t" x="157" y="366" text-anchor="middle">Closed</text>
+
+      <text class="diag-sub" x="52" y="396">ads move to "Closed" automatically</text>
+      <text class="diag-sub" x="52" y="410">once the deadline passes</text>
+    </svg>
+    <p class="diag-caption">One approved job's journey from Dynamics to the public careers page. Details for each numbered step follow below.</p>
+  </div>
+
+  <h2>The endpoint</h2>
+  <div class="endpoint">
+    <div class="mono">https://&lt;site&gt;/wp-json/careers-api/v1/jobs/<strong>{job-id}</strong></div>
+    <div class="note"><span class="mono">{job-id}</span> is <em>Dynamics' own</em> job reference (e.g. <span class="mono">JOB-2026-014</span>). It must never change for a given job — WordPress stores it on the ad (meta field <span class="mono">_careers_api_job_id</span>) and matches every later message by it. WordPress internals are never exposed.</div>
+  </div>
+
+  <div class="verbs">
+    <div class="verb">
+      <span class="tag">PUT</span>
+      <p><strong>Create or update in one verb.</strong> Send the job's current state; WordPress makes the site match. Unknown ID → created &amp; published (201). Known ID → overwritten (200). Re-sends are always safe — never duplicates.</p>
+      <p>Closing a vacancy = PUT with a past deadline. The ad moves to the "Closed" tab automatically and stays visible as history.</p>
+    </div>
+    <div class="verb danger">
+      <span class="tag">DELETE</span>
+      <p><strong>Retract a mistake.</strong> Removes the ad from the site entirely (recoverable from trash). 404 if the ID is unknown.</p>
+      <p>Never used for routine closing — only for "this should not have been posted."</p>
+    </div>
+  </div>
+
+  <h2>The JSON contract (PUT body)</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Field</th><th>Required</th><th>Format</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>title</td><td class="req">yes</td><td>text</td><td>the job title shown everywhere</td></tr>
+        <tr><td>description</td><td class="req">yes</td><td>text / HTML</td><td>the full advert, shown on the job's own page. Normal formatting (paragraphs, lists, links) survives; WordPress auto-removes anything that could run as code (scripts, embeds) before saving — Dynamics doesn't need to clean it</td></tr>
+        <tr><td>short_description</td><td class="opt">no</td><td>text / HTML</td><td>the short teaser under the title on the careers listing card. Optional — if not sent, the card just shows title, deadline &amp; location. Same auto-cleaning applies</td></tr>
+        <tr><td>location</td><td class="req">yes</td><td>2-letter ISO code</td><td><code>KE</code>, not "Kenya"</td></tr>
+        <tr><td>application_deadline</td><td class="req">yes</td><td><code>YYYY-MM-DD</code></td><td>date only — convert from OData timestamp, mind the timezone</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout"><strong>Field-name rule:</strong> WordPress defines this contract; Dynamics maps its own OData field names into it when building the message. Internal renames on the Dynamics side only ever touch that one mapping. Invalid input is rejected whole (400, named field) — nothing half-saves.</div>
+
+  <h2>Authentication</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Step</th><th>Who</th><th>What</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>WP admin</td><td>Create user with role <strong>Job Portal Integration</strong> (can write job ads only — nothing else on the site)</td></tr>
+        <tr><td>2</td><td>WP admin</td><td>That user's Profile → <strong>Application Passwords</strong> → generate one ("Dynamics Job Portal"); shown once, revocable in one click</td></tr>
+        <tr><td>3</td><td>Dynamics</td><td>Store site URL + username + password in a secrets vault (never in source); send via HTTP <strong>Basic auth</strong> over <strong>HTTPS</strong> (WP refuses app passwords on plain HTTP)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout"><strong>No extra plugin needed:</strong> all of this uses WordPress's normal, built-in user screens — same as managing admins and editors. The account is an ordinary user; the "Job Portal Integration" role is registered automatically when the Careers API plugin is activated and then appears in the standard role dropdown; Application Passwords are core WordPress (since 5.6), on every user's profile page — the section only shows once the site is on HTTPS.</div>
+
+  <h2>What WordPress does on receipt</h2>
+  <div class="diagram">
+    <svg viewBox="0 0 760 660" role="img" aria-label="Flowchart of one PUT request inside WordPress: request arrives, credentials and permission checked, fields validated, content cleaned, job ID looked up, ad updated or created, details saved, cache flushed, receipt returned. Failed checks are refused with 401, 403 or 400 and nothing is saved.">
+      <defs>
+        <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" class="arr-head"/>
+        </marker>
+        <marker id="arr2-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" class="arr-head-m"/>
+        </marker>
+      </defs>
+      <!-- 1 request arrives -->
+      <rect class="diag-box" x="170" y="6" width="340" height="48" rx="8"/>
+      <circle class="diag-num" cx="194" cy="30" r="11"/>
+      <text class="diag-num-t" x="194" y="34" text-anchor="middle">1</text>
+      <text class="diag-main" x="212" y="27">Request arrives over HTTPS</text>
+      <text class="diag-sub" x="212" y="44">JSON + username &amp; application password</text>
+      <path class="diag-line" d="M340 54 V72" marker-end="url(#arr2)"/>
+
+      <!-- 2 auth -->
+      <rect class="diag-box" x="170" y="76" width="340" height="48" rx="8"/>
+      <circle class="diag-num" cx="194" cy="100" r="11"/>
+      <text class="diag-num-t" x="194" y="104" text-anchor="middle">2</text>
+      <text class="diag-main" x="212" y="97">Password &amp; permission checked</text>
+      <text class="diag-sub" x="212" y="114">is this really the job portal account?</text>
+      <path class="diag-line-m" d="M510 100 H548" marker-end="url(#arr2-m)"/>
+      <rect class="diag-rejbox" x="552" y="74" width="202" height="52" rx="8"/>
+      <text class="diag-sub" x="653" y="96" text-anchor="middle">refused — 401 / 403</text>
+      <text class="diag-sub" x="653" y="112" text-anchor="middle">wrong password / not allowed</text>
+      <path class="diag-line" d="M340 124 V142" marker-end="url(#arr2)"/>
+
+      <!-- 3 validate -->
+      <rect class="diag-box" x="170" y="146" width="340" height="48" rx="8"/>
+      <circle class="diag-num" cx="194" cy="170" r="11"/>
+      <text class="diag-num-t" x="194" y="174" text-anchor="middle">3</text>
+      <text class="diag-main" x="212" y="167">All 5 fields validated</text>
+      <text class="diag-sub" x="212" y="184">title, descriptions, location code, deadline</text>
+      <path class="diag-line-m" d="M510 170 H548" marker-end="url(#arr2-m)"/>
+      <rect class="diag-rejbox" x="552" y="144" width="202" height="52" rx="8"/>
+      <text class="diag-sub" x="653" y="166" text-anchor="middle">refused — 400, field named</text>
+      <text class="diag-sub" x="653" y="182" text-anchor="middle">nothing saved at all</text>
+      <path class="diag-line" d="M340 194 V212" marker-end="url(#arr2)"/>
+
+      <!-- 4 sanitize -->
+      <rect class="diag-box" x="170" y="216" width="340" height="48" rx="8"/>
+      <circle class="diag-num" cx="194" cy="240" r="11"/>
+      <text class="diag-num-t" x="194" y="244" text-anchor="middle">4</text>
+      <text class="diag-main" x="212" y="237">Content cleaned</text>
+      <text class="diag-sub" x="212" y="254">formatting kept, anything runnable removed</text>
+      <path class="diag-line" d="M340 264 V282" marker-end="url(#arr2)"/>
+
+      <!-- 5 lookup -->
+      <rect class="diag-box" x="170" y="286" width="340" height="48" rx="8"/>
+      <circle class="diag-num" cx="194" cy="310" r="11"/>
+      <text class="diag-num-t" x="194" y="314" text-anchor="middle">5</text>
+      <text class="diag-main" x="212" y="307">Already have this job ID?</text>
+      <text class="diag-sub" x="212" y="324">looked up by the hidden job-ID note, any status</text>
+
+      <!-- branch -->
+      <path class="diag-line" d="M290 334 L208 366" marker-end="url(#arr2)"/>
+      <text class="diag-wire" x="228" y="352" text-anchor="middle">yes</text>
+      <path class="diag-line" d="M390 334 L550 366" marker-end="url(#arr2)"/>
+      <text class="diag-wire" x="466" y="344" text-anchor="middle">no</text>
+
+      <rect class="diag-box" x="56" y="370" width="296" height="52" rx="8"/>
+      <text class="diag-main" x="72" y="392">Update the existing ad</text>
+      <text class="diag-sub" x="72" y="409">same post overwritten — never a duplicate</text>
+
+      <rect class="diag-box" x="408" y="370" width="296" height="52" rx="8"/>
+      <text class="diag-main" x="424" y="392">Create a new ad</text>
+      <text class="diag-sub" x="424" y="409">Published — or hidden draft in Test Mode</text>
+
+      <path class="diag-line" d="M204 422 L322 454" marker-end="url(#arr2)"/>
+      <path class="diag-line" d="M556 422 L358 454" marker-end="url(#arr2)"/>
+
+      <!-- 6 save details -->
+      <rect class="diag-box" x="170" y="458" width="340" height="48" rx="8"/>
+      <circle class="diag-num" cx="194" cy="482" r="11"/>
+      <text class="diag-num-t" x="194" y="486" text-anchor="middle">6</text>
+      <text class="diag-main" x="212" y="479">Details saved onto the ad</text>
+      <text class="diag-sub" x="212" y="496">deadline, location, blurb, job ID</text>
+      <path class="diag-line" d="M340 506 V524" marker-end="url(#arr2)"/>
+
+      <!-- 7 cache -->
+      <rect class="diag-box" x="170" y="528" width="340" height="48" rx="8"/>
+      <circle class="diag-num" cx="194" cy="552" r="11"/>
+      <text class="diag-num-t" x="194" y="556" text-anchor="middle">7</text>
+      <text class="diag-main" x="212" y="549">Careers page cache flushed</text>
+      <text class="diag-sub" x="212" y="566">next visitor sees the change — server cache: see flags</text>
+      <path class="diag-line" d="M340 576 V594" marker-end="url(#arr2)"/>
+
+      <!-- 8 receipt -->
+      <rect class="diag-box" x="170" y="598" width="340" height="48" rx="8"/>
+      <circle class="diag-num" cx="194" cy="622" r="11"/>
+      <text class="diag-num-t" x="194" y="626" text-anchor="middle">8</text>
+      <text class="diag-main" x="212" y="619">Receipt returned to Dynamics</text>
+      <text class="diag-sub" x="212" y="636">201 created / 200 updated + the ad's link</text>
+    </svg>
+    <p class="diag-caption">A DELETE runs the same checks (1–3 and 5), then moves the ad to the trash — 404 if the job ID is unknown.</p>
+  </div>
+
+  <h2>Reliability rules for the sender</h2>
+  <div class="callout">
+    Send <strong>only on change</strong> (approve / edit / retract) — no scheduled bulk re-sync.
+    Retry <strong>5xx / network failures</strong> with backoff — 5xx = server-side errors, 500–599 (e.g. 500 Internal Server Error, 503 during a restart): the message was fine, WordPress hiccupped, so the same send will succeed later. PUT is safely repeatable.
+    Do <strong>not</strong> retry <strong>4xx</strong> — those mean the <em>message or credentials</em> were wrong (400 invalid data, 401 bad password, 403 not allowed), so the same send fails the same way; log it and alert a human.
+  </div>
+
+  <h2>Security &amp; performance — reviewed, key flags</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Flag</th><th>Mitigation</th></tr></thead>
+      <tbody>
+        <tr><td style="font-family:inherit;white-space:normal"><strong>⚠ Server page cache (SiteGround)</strong> will delay new ads even though WP's own cache flushes correctly</td><td><strong>Must fix before go-live:</strong> purge the careers URL on save, or exclude the page from SG caching</td></tr>
+        <tr><td style="font-family:inherit;white-space:normal">Leaked credential = instant publishing (approval lives in Dynamics)</td><td>Role limited to job ads only; scripts stripped; one-click revoke; <em>recommended:</em> email alert per API-created ad + IP allowlist if Dynamics has a fixed egress IP</td></tr>
+        <tr><td style="font-family:inherit;white-space:normal">No built-in lockout against password guessing</td><td>24-char random password; MalCare firewall (confirm it covers <code>/wp-json/</code>); IP allowlist closes this fully</td></tr>
+        <tr><td style="font-family:inherit;white-space:normal">Credential travels with every request</td><td>HTTPS only — WP refuses app passwords over HTTP; never ship a dev override to production</td></tr>
+        <tr><td style="font-family:inherit;white-space:normal">No audit trail of API writes</td><td>Log create/update/delete on the WP side; Dynamics logs every send + response</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout">Designed-in safeguards: the write API is a <strong>standalone plugin</strong> (zero shared code with the production read-only mel API); retract-then-repost restores the original ad instead of duplicating; the job-ID field is force-prefixed so WordPress protects it from manual editing. CSRF and role-scope checks verified safe.</div>
+
+  <h2>Action items</h2>
+  <div class="cols">
+    <div class="checklist">
+      <h3>Dynamics team</h3>
+      <ul>
+        <li>Pin the approval-workflow trigger point (must also fire on edits)</li>
+        <li>Confirm the stable job identifier</li>
+        <li>Write the 5-field mapping (incl. date + country-code conversion)</li>
+        <li>Build PUT/DELETE calls with retry queue + failure alerting</li>
+        <li>Set up secrets storage for the credential</li>
+        <li>Log every send + response</li>
+        <li>Provide 1–2 sample job records as JSON</li>
+        <li>Share the server's outgoing IP (for allowlisting, if fixed)</li>
+      </ul>
+    </div>
+    <div class="checklist">
+      <h3>WordPress team</h3>
+      <ul>
+        <li>Careers API plugin — built (standalone; mel API untouched)</li>
+        <li>Activate + enable it on staging/production</li>
+        <li>For live-site testing: tick <strong>Test Mode</strong> — ads arrive as hidden drafts (admin preview only); untick + re-send to go live</li>
+        <li>Create integration user + application password</li>
+        <li>Hand over site URL, username, password</li>
+        <li><strong>Resolve SiteGround cache purge for the careers page</strong></li>
+        <li>Set up API-write email alert + logging</li>
+        <li>Joint test plan on the HTTPS staging site (create → update → close → retract → repost → negative tests)</li>
+      </ul>
+    </div>
+  </div>
+
+  <footer>Full detail: <span class="mono">wp-content/plugins/careers-api/docs/careers-api-guide.md</span>. Testing note: application passwords require HTTPS — the local WAMP copy won't accept them.</footer>
+</div>
