@@ -4,7 +4,7 @@
  * Plugin URI:  https://aphrc.org
  * Description: Authenticated REST API that lets the MS Dynamics job portal create, update, and retract job ads on the careers page.
  * Version:     1.0.0
- * Author:      ADS Kenya
+ * Author:      APHRC ICT-Devs
  * License:     GPL-2.0+
  * Text Domain: careers-api
  */
