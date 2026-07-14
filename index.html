@@ -462,7 +462,7 @@
     <table>
       <thead><tr><th>Flag</th><th>Mitigation</th></tr></thead>
       <tbody>
-        <tr><td style="font-family:inherit;white-space:normal"><strong>⚠ Server page cache (SiteGround)</strong> will delay new ads even though WP's own cache flushes correctly</td><td><strong>Must fix before go-live:</strong> purge the careers URL on save, or exclude the page from SG caching</td></tr>
+        <tr><td style="font-family:inherit;white-space:normal"><strong>⚠ Page cache (W3 Total Cache)</strong> delays ads reaching the public page — confirmed prod settings (lifetime 3600&nbsp;s, GC 3600&nbsp;s, preload 900&nbsp;s) mean ~15–60&nbsp;min typical, ~2&nbsp;h worst case; slow for urgent retractions</td><td><strong>Go-live decision:</strong> add the careers page to Page Cache → "Never cache the following pages" for instant updates (recommended, zero code), purge on save via <code>w3tc_flush_url()</code>, or accept the delay</td></tr>
         <tr><td style="font-family:inherit;white-space:normal">Leaked credential = instant publishing (approval lives in Dynamics)</td><td>Role limited to job ads only; scripts stripped; one-click revoke; <em>recommended:</em> email alert per API-created ad + IP allowlist if Dynamics has a fixed egress IP</td></tr>
         <tr><td style="font-family:inherit;white-space:normal">No built-in lockout against password guessing</td><td>24-char random password; MalCare firewall (confirm it covers <code>/wp-json/</code>); IP allowlist closes this fully</td></tr>
         <tr><td style="font-family:inherit;white-space:normal">Credential travels with every request</td><td>HTTPS only — WP refuses app passwords over HTTP; never ship a dev override to production</td></tr>
@@ -477,6 +477,7 @@
     <div class="checklist">
       <h3>Dynamics team</h3>
       <ul>
+        <li>Test the contract with Postman against the localhost twin — full walkthrough in <span class="mono">docs/postman-testing-guide.md</span></li>
         <li>Pin the approval-workflow trigger point (must also fire on edits)</li>
         <li>Confirm the stable job identifier</li>
         <li>Write the 5-field mapping (incl. date + country-code conversion)</li>
@@ -491,11 +492,11 @@
       <h3>WordPress team</h3>
       <ul>
         <li>Careers API plugin — built (standalone; mel API untouched)</li>
-        <li>Activate + enable it on staging/production</li>
-        <li>For live-site testing: tick <strong>Test Mode</strong> — ads arrive as hidden drafts (admin preview only); untick + re-send to go live</li>
+        <li><strong>Stage 1:</strong> test on localhost with the no-auth <em>Local Test</em> twin plugin + Postman (see <span class="mono">docs/postman-testing-guide.md</span>)</li>
+        <li><strong>Stage 2:</strong> activate + enable the real plugin on the live site with <strong>Test Mode</strong> ticked — ads arrive as hidden drafts (admin preview only); untick + re-send to go live</li>
         <li>Create integration user + application password</li>
         <li>Hand over site URL, username, password</li>
-        <li><strong>Resolve SiteGround cache purge for the careers page</strong></li>
+        <li><strong>Decide the W3 Total Cache handling: exclude the careers page (recommended) or accept the ~15–60 min delay</strong></li>
         <li>Set up API-write email alert + logging</li>
         <li>Joint test plan on the HTTPS staging site (create → update → close → retract → repost → negative tests)</li>
       </ul>

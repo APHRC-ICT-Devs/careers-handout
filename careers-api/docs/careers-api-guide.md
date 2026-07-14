@@ -231,7 +231,7 @@ Also checked and confirmed safe: a logged-in admin's browser cannot be tricked i
 
 | Risk | In plain terms | Mitigation |
 |---|---|---|
-| **Server-level cache hides new ads on production** ⚠ | The careers page's own cache is flushed correctly when an ad arrives — but the live host runs SiteGround's page cache *in front of* WordPress, which will keep serving the old page until its own timer expires. Without action, "appears immediately" becomes "appears within the cache timeout." | Before go-live: either purge that page's server cache whenever a career post is saved (SG Optimizer provides a purge hook), or exclude the careers page from server caching in SG settings. **This is the one item that must be resolved before production.** |
+| **Page cache delays new ads on production** ⚠ | The careers page's own cache is flushed correctly when an ad arrives — but the live site runs **W3 Total Cache**, whose page cache sits *in front of* WordPress and keeps serving the old copy of the page until it expires or is purged. W3TC automatically purges the edited post's *own* page on save, but not the careers *listing* page, which is a different page. Confirmed production settings: cache lifetime **3600 s**, garbage collection **3600 s**, preloader cycle **900 s** — so with no changes, a new/changed/retracted ad reaches the public page within **~15–60 minutes typically, up to ~2 hours worst case**. Tolerable for new ads; slow for urgent retractions or corrections. | A go-live decision, one of: **(a)** *(recommended)* add the careers page URL to **Performance → Page Cache → Never cache the following pages** — instant updates, zero code, and the page stays fast because its built-in hourly cache (flushed instantly on every API write) does the heavy lifting; **(b)** purge it programmatically on save via W3TC's `w3tc_flush_url()` / `w3tc_flush_post()`; or **(c)** accept the delay above as-is. |
 | **Revision build-up** | Every update PUT stores a "previous version" of the post, forever. | Harmless at job-ad volume. If Dynamics ever re-sends frequently, cap stored revisions for career posts (a one-line WordPress filter). |
 | **Simultaneous first-time sends could race** | Two identical PUTs arriving in the same instant for a brand-new job could, in theory, both create a post. | Practically excluded by the "send only on change" rule — Dynamics sends one event per approval. Not worth extra machinery. |
 
@@ -239,15 +239,21 @@ Non-issues verified: the job-ID lookup is instantaneous at careers-page scale, t
 
 ---
 
-## 11. Joint test plan (once credentials exist on the HTTPS site)
+## 11. Joint test plan
 
-### Safe testing on a live site: Test Mode
+### Stage 1 — local testing first (no risk to the live site)
+
+Because the live site is high-traffic, first-round testing happens entirely on a developer's localhost copy using a companion plugin, **Careers API — Local Test** (`wp-content/plugins/careers-api-local-test/`). It is an exact twin of the real plugin — same URL path, same JSON contract, same validation and responses — with one difference: **authentication is removed**, so it works on plain HTTP where application passwords aren't available. Two built-in safety catches: it hard-refuses to run on any host that isn't localhost (uploaded to production by mistake, it registers nothing and shows a red error notice), and it pauses itself if the real plugin is enabled on the same site.
+
+The Dynamics team tests against it with **Postman** — the step-by-step walkthrough, including ready-to-paste requests and the full negative-test checklist, is in [`docs/postman-testing-guide.md`](postman-testing-guide.md). A Postman collection built in stage 1 works unchanged in stage 2: only the base URL changes and Basic Auth credentials are added.
+
+### Stage 2 — the live HTTPS site: Test Mode
 
 The settings screen has a **Test Mode** checkbox for exactly this situation. While it's on, every ad the API receives is saved as a **hidden draft** instead of being published: drafts never appear on the careers page (it only lists published ads) and are not publicly viewable — only logged-in admins/editors can open and preview them in wp-admin. The entire pipeline still runs for real — authentication, validation, field mapping, job-ID matching, update-not-duplicate — so the integration can be fully verified on production with zero public exposure. A yellow warning banner shows on the settings screen the whole time it's on.
 
 Going live afterwards is just: untick Test Mode, then have Dynamics re-send the jobs — each re-send publishes the existing draft (the receipt's `post_status` and `test_mode` fields confirm which mode handled each message).
 
-### The test plan
+### The stage-2 test plan (once credentials exist on the HTTPS site)
 
 1. WordPress admin: activate the Careers API plugin, enable it under **Settings → Careers API** (tick **Test Mode** if testing on the live site), and confirm "Job Portal Integration" appears in the role dropdown under **Users → Add New**.
 2. Create the integration user and generate its Application Password (needs the HTTPS site — see the caveat in section 6).
@@ -266,5 +272,5 @@ Going live afterwards is just: untick Test Mode, then have Dynamics re-send the 
 | Team | Action |
 |---|---|
 | Dynamics | Identify the approval trigger point; confirm outbound HTTPS + secrets storage; write the 5-field mapping (incl. date + country-code conversion); build the PUT/DELETE calls with retry logic; log every send + response; provide sample JSON; share the server's outgoing IP (for the allowlist, if fixed). |
-| WordPress | Plugin built (table in section 9). Remaining: activate + enable it on staging/production, create the integration user, generate and hand over the application password, **resolve the SiteGround cache purge (section 10)**, set up the API-write email alert and logging. |
+| WordPress | Plugin built (table in section 9). Remaining: activate + enable it on staging/production, create the integration user, generate and hand over the application password, **decide the W3 Total Cache handling for the careers page — exclude (recommended) or accept the delay (section 10)**, set up the API-write email alert and logging. |
 | Both | Run the joint test plan in section 11 against the HTTPS staging site. |
