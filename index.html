@@ -239,7 +239,7 @@
       <circle class="diag-num" cx="32" cy="186" r="11"/>
       <text class="diag-num-t" x="32" y="190" text-anchor="middle">3</text>
       <text class="diag-step" x="52" y="183">Maps its field names to</text>
-      <text class="diag-step" x="52" y="200">the 5-field JSON contract</text>
+      <text class="diag-step" x="52" y="200">the 6-field JSON contract</text>
 
       <!-- wire: Dynamics -> WordPress -->
       <path class="diag-line" d="M338 108 H420" marker-end="url(#arr)"/>
@@ -328,12 +328,14 @@
         <tr><td>title</td><td class="req">yes</td><td>text</td><td>= <code>RecruitmentAdvertList.Job_Title</code> (the advert's title, not <code>Position_Title</code>)</td></tr>
         <tr><td>description</td><td class="req">yes</td><td>text / HTML</td><td>= <code>Job_Description</code> (background) + stitched <code>Expected_Responsibilities</code> + <code>Required_Qualifications</code> lines + footer/special notice. Quill formatting survives; WordPress auto-removes anything that could run as code — Dynamics doesn't need to clean it</td></tr>
         <tr><td>short_description</td><td class="opt">no</td><td>text / HTML</td><td>the short teaser under the title on the careers listing card. Optional — if not sent, the card just shows title, deadline &amp; location. Same auto-cleaning applies</td></tr>
-        <tr><td>location</td><td class="req">yes</td><td>2-letter code or free text (≤120 chars)</td><td>send <code>Duty_Station, Duty_Country</code> e.g. <code>Dakar, Senegal</code> (shown as sent); a code like <code>KE</code> is shown as the country name</td></tr>
+        <tr><td>location</td><td class="req">yes</td><td><strong>2-letter ISO code, exactly</strong></td><td>= <code>Duty_Country</code> converted to code, e.g. <code>"Senegal"</code> → <code>"SN"</code>. <strong>Never free text or the 3-letter <code>CountryRegion.Code</code></strong> — see callout below</td></tr>
+        <tr><td>duty_station</td><td class="opt">no</td><td>text (city)</td><td>= <code>Duty_Station</code> unchanged, e.g. <code>"Dakar"</code> — no conversion</td></tr>
         <tr><td>application_deadline</td><td class="req">yes</td><td><code>YYYY-MM-DD</code></td><td>= <code>Closing_Date</code>, already in this form — pass through unchanged; display format is WordPress's job</td></tr>
       </tbody>
     </table>
   </div>
 
+  <div class="callout"><strong>Why location is code-only:</strong> WordPress's "Location" field in wp-admin is a country picker (Pods Relationship field), not a text box — it can only hold a recognized 2-letter code. An earlier version combined city+country into one free-text field; that broke silently (the picker showed it as empty, and saving the post in wp-admin wiped it). Splitting into <code>location</code> (code) + <code>duty_station</code> (city, plain text) fixed it for good — see the guide, section 5.</div>
   <div class="callout"><strong>Field-name rule:</strong> WordPress defines this contract; Dynamics maps its own OData field names into it when building the message. Internal renames on the Dynamics side only ever touch that one mapping. Invalid input is rejected whole (400, named field) — nothing half-saves.</div>
   <div class="callout"><strong>When to send:</strong> only jobs whose advert exists and has actually been advertised (<code>Advert_Created</code> true and <code>Advertised_when</code> set — not <code>0001-01-01</code>), and only on/after <code>Opening_Date</code> — anything pushed goes public immediately. Deadline display on the careers page ("29 Jun 2026", dd MMM yyyy) is WordPress's rendering job — Dynamics always sends plain <code>YYYY-MM-DD</code>.</div>
 
@@ -471,12 +473,12 @@
 
   <p style="font-size:14px; margin:12px 0 8px;">The test sequence, in Postman (full walkthrough with ready-to-paste JSON: <span class="mono">docs/postman-testing-guide.md</span>):</p>
   <ol class="flow">
-    <li><strong>Create:</strong> <code>PUT …/jobs/TEST-001</code> with the 5-field JSON body → <strong>201 Created</strong>; the ad appears under "Open" on the careers page <em>(stage 2 Test Mode: as a draft in wp-admin instead)</em>.</li>
+    <li><strong>Create:</strong> <code>PUT …/jobs/TEST-001</code> with the 6-field JSON body → <strong>201 Created</strong>; the ad appears under "Open" on the careers page <em>(stage 2 Test Mode: as a draft in wp-admin instead)</em>.</li>
     <li><strong>Update:</strong> same PUT with a changed title → <strong>200 OK</strong>, same <code>id</code>, still exactly one ad — no duplicate.</li>
     <li><strong>Close:</strong> same PUT with a past <code>application_deadline</code> → the ad moves to the "Closed" tab by itself.</li>
     <li><strong>Retract:</strong> <code>DELETE …/jobs/TEST-001</code> → <strong>200</strong>, ad gone from both tabs (recoverable from trash).</li>
     <li><strong>Repost:</strong> send the original PUT again → the <em>same</em> ad is restored and republished, never duplicated.</li>
-    <li><strong>Break it on purpose:</strong> empty location, wrong date format, or missing title → <strong>400</strong> naming the problem field, nothing saved; DELETE an unknown ID → <strong>404</strong>. Stage 2 extras: no credentials → <strong>401</strong>; a non-integration user → <strong>403</strong>.</li>
+    <li><strong>Break it on purpose:</strong> a country name or 3-letter code in <code>location</code>, wrong date format, or missing title → <strong>400</strong> naming the problem field, nothing saved; DELETE an unknown ID → <strong>404</strong>. Stage 2 extras: no credentials → <strong>401</strong>; a non-integration user → <strong>403</strong>.</li>
   </ol>
   <div class="callout">A browser can't test these endpoints (it only sends GET; the API accepts only PUT/DELETE) — but you can sanity-check the route exists by opening <span class="mono">…/wp-json/careers-api/v1</span> in a browser and seeing the <code>jobs</code> route listed.</div>
 
@@ -503,7 +505,7 @@
         <li>Test the contract with Postman against the localhost twin — full walkthrough in <span class="mono">docs/postman-testing-guide.md</span></li>
         <li>Pin the approval-workflow trigger point (must also fire on edits)</li>
         <li>Confirm the stable job identifier</li>
-        <li>Write the 5-field mapping (incl. date + country-code conversion)</li>
+        <li>Write the 6-field mapping (incl. date + country-code conversion)</li>
         <li>Build PUT/DELETE calls with retry queue + failure alerting</li>
         <li>Set up secrets storage for the credential</li>
         <li>Log every send + response</li>
@@ -515,7 +517,8 @@
       <h3>WordPress team</h3>
       <ul>
         <li>Careers API plugin — built (standalone; mel API untouched)</li>
-        <li><strong>Stage 1:</strong> test on localhost with the no-auth <em>Local Test</em> twin plugin + Postman (see <span class="mono">docs/postman-testing-guide.md</span>)</li>
+        <li><strong>Add the <code>duty_station</code> field in Pods</strong> (Careers → More Fields → + Add Field → Plain Text) and update the Career Deadline Checker snippet to combine it with the country (guide, section 5)</li>
+        <li><strong>Stage 1:</strong> test on localhost with the no-auth <em>Local Test</em> twin plugin + Postman (see <span class="mono">docs/postman-testing-guide.md</span>) — check the Location field renders correctly in wp-admin, not blank</li>
         <li><strong>Stage 2:</strong> activate + enable the real plugin on the live site with <strong>Test Mode</strong> ticked — ads arrive as hidden drafts (admin preview only); untick + re-send to go live</li>
         <li>Create integration user + application password</li>
         <li>Hand over site URL, username, password</li>

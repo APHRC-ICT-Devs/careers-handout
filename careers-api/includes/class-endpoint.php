@@ -12,9 +12,10 @@ class Careers_API_Endpoint {
 
 	/** Meta keys are hardcoded on purpose: the Career Deadline Checker
 	 *  snippet reads these exact keys, so they must stay in sync. */
-	const META_DEADLINE = 'application_deadline';
-	const META_LOCATION = 'location';
-	const META_SHORT    = 'career_short';
+	const META_DEADLINE     = 'application_deadline';
+	const META_LOCATION     = 'location';
+	const META_DUTY_STATION = 'duty_station';
+	const META_SHORT        = 'career_short';
 
 	private string $post_type;
 	private string $slug;
@@ -55,19 +56,21 @@ class Careers_API_Endpoint {
 	// -------------------------------------------------------------------------
 
 	public function upsert( WP_REST_Request $request ): WP_REST_Response|WP_Error {
-		$external_id = $request->get_param( 'external_id' );
-		$title       = sanitize_text_field( $request->get_param( 'title' ) );
-		$content     = wp_kses_post( $request->get_param( 'description' ) );
-		$short       = wp_kses_post( (string) $request->get_param( 'short_description' ) );
-		$deadline    = $request->get_param( 'application_deadline' );
+		$external_id  = $request->get_param( 'external_id' );
+		$title        = sanitize_text_field( $request->get_param( 'title' ) );
+		$content      = wp_kses_post( $request->get_param( 'description' ) );
+		$short        = wp_kses_post( (string) $request->get_param( 'short_description' ) );
+		$deadline     = $request->get_param( 'application_deadline' );
+		$duty_station = sanitize_text_field( (string) $request->get_param( 'duty_station' ) );
 
-		// Location accepts either a 2-letter ISO code (the careers page shows
-		// it as the full country name) or free text like "Dakar, Senegal"
-		// (shown as sent). Only codes are uppercased.
-		$location = sanitize_text_field( $request->get_param( 'location' ) );
-		if ( preg_match( '/^[A-Za-z]{2}$/', $location ) ) {
-			$location = strtoupper( $location );
-		}
+		// location is a 2-letter ISO country code: the careers page's
+		// "Location" field is a Pods Relationship field to Pods' built-in
+		// country list, not free text — anything else fails to register
+		// there and gets silently cleared the next time the post is opened
+		// and saved in wp-admin. City/duty station is a separate field
+		// (duty_station) precisely because it has nowhere valid to live
+		// inside that relationship field.
+		$location = strtoupper( sanitize_text_field( $request->get_param( 'location' ) ) );
 
 		$existing = $this->find_by_external_id( $external_id );
 
@@ -95,8 +98,27 @@ class Careers_API_Endpoint {
 		}
 
 		update_post_meta( $post_id, $this->external_id_key, $external_id );
-		update_post_meta( $post_id, self::META_LOCATION, $location );
 		update_post_meta( $post_id, self::META_DEADLINE, $deadline );
+
+		// Pods manages "location" as a Relationship field: it must be saved
+		// through Pods' own API so the internal `_pods_location` value it
+		// actually reads in wp-admin is set correctly, not just the flat
+		// meta mirror. Falls back to a plain meta write if Pods is ever
+		// unavailable (defensive only — this site's career CPT is a Pods pod).
+		if ( function_exists( 'pods' ) ) {
+			$pod = pods( $this->post_type, $post_id );
+			if ( $pod && $pod->exists() ) {
+				$pod->save( self::META_LOCATION, [ $location ] );
+			} else {
+				update_post_meta( $post_id, self::META_LOCATION, $location );
+			}
+		} else {
+			update_post_meta( $post_id, self::META_LOCATION, $location );
+		}
+
+		if ( $duty_station !== '' ) {
+			update_post_meta( $post_id, self::META_DUTY_STATION, $duty_station );
+		}
 
 		if ( $short !== '' ) {
 			update_post_meta( $post_id, self::META_SHORT, $short );
@@ -163,9 +185,12 @@ class Careers_API_Endpoint {
 			'short_description'    => [
 				'required' => false,
 			],
+			'duty_station'         => [
+				'required' => false,
+			],
 			'location'             => [
 				'required'          => true,
-				'validate_callback' => fn( $v ) => is_string( $v ) && trim( $v ) !== '' && mb_strlen( $v ) <= 120,
+				'validate_callback' => fn( $v ) => is_string( $v ) && preg_match( '/^[A-Za-z]{2}$/', $v ),
 			],
 			'application_deadline' => [
 				'required'          => true,
