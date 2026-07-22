@@ -32,7 +32,7 @@ The same trigger logic applies to two later events:
 ### What the Dynamics dev team hands over
 
 1. **The trigger point** — where in their approval workflow the outbound call will fire, and confirmation it can also fire on *updates* to an already-approved job.
-2. **A stable job identifier** — each job's unique reference in Dynamics (e.g. `JOB-2026-014`). This ID is the thread that ties everything together (explained in section 4), so it must never change for a given job.
+2. **A stable job identifier** — each job's unique reference in Dynamics (e.g. `RTN-00095`). This ID is the thread that ties everything together (explained in section 4), so it must never change for a given job.
 3. **The field list** — which Dynamics fields hold the job title, full description, short summary, country, and closing date. Their OData entity will have its own names for these — that's fine and expected; section 5 explains how the naming difference is handled.
 4. **Sample data** — one or two real (or realistic) approved job records exported as JSON, so the WordPress side can check formats, especially dates.
 5. **Confirmation of outbound HTTPS capability** — that their environment can make authenticated HTTPS calls to an external website, and where they will securely store the credentials WordPress issues them (e.g. Azure Key Vault or their platform's secure configuration — not hard-coded in source).
@@ -72,7 +72,7 @@ The JSON that travels with a PUT — this is the entire contract between the two
 | `title` | yes | text | `"Research Officer – Nairobi"` |
 | `description` | yes | text/HTML | full job description |
 | `short_description` | no | text/HTML | one-paragraph summary for the listing card |
-| `location` | yes | 2-letter country code | `"KE"` |
+| `location` | yes | 2-letter country code *or* free text (≤ 120 chars) | `"KE"` or `"Dakar, Senegal"` |
 | `application_deadline` | yes | `YYYY-MM-DD` | `"2026-08-31"` |
 
 **Closing a job needs no special message.** The careers page automatically shows a job under its "Closed" tab once the deadline date has passed. So "position filled early" or "deadline passed" is handled by a normal PUT with a deadline in the past. The ad stays visible as history, which is the intended behaviour.
@@ -99,15 +99,25 @@ Dynamics' internal field names (from its OData schema) will not match the five J
 
 > **WordPress defines the contract (the five JSON fields). Dynamics translates its own field names into that contract when it builds the outbound message.**
 
-Concretely, somewhere in the Dynamics-side integration code there will be a small, boring, explicit mapping — pseudocode:
+### The real mapping — confirmed Dynamics/Business Central sources
 
-```
-json.title                = job.msdyn_position_name
-json.description          = job.aphrc_full_description
-json.short_description    = job.aphrc_summary
-json.location             = job.aphrc_country_code        // must be 2 letters, e.g. "KE"
-json.application_deadline = job.aphrc_closing_date.ToString("yyyy-MM-dd")
-```
+The Dynamics side draws on several OData entities, all linked by the **Recruitment Needs Code** (e.g. `RTN-00095`) — which is exactly the stable job identifier this integration needs:
+
+| WordPress field | Dynamics source | Notes |
+|---|---|---|
+| `{job-id}` in the URL | `Recruitment_Need_Code` | e.g. `RTN-00095` — the thread linking every entity below; already URL-safe for our route. |
+| `title` | `RecruitmentAdvertList.Job_Title` | Use the *advert's* title (it can differ slightly from the approved list's `Position_Title`). |
+| `description` | Stitched together, in order: `RecruitmentListApproved.Job_Description` (the background) + combined `ExpectedRequirements.Expected_Responsibilities` lines + combined `Qualifications.Required_Qualifications` lines + footer details + special notice | The responsibilities and qualifications entities arrive **split across multiple `Line_No` rows** — the existing Dynamics-side combine function stitches them (with the whole-value table as fallback). The `<` sequences in the samples are just JSON encoding of `<`; after parsing it's normal HTML. The Quill editor's HTML (paragraphs, headings, lists, bold, inline styles) survives WordPress's filter intact. |
+| `short_description` | *(optional)* e.g. the first paragraph of `Job_Description` with tags stripped | Or omit it — the listing card then shows title, deadline, and location only. |
+| `location` | `Duty_Station` + `", "` + `Duty_Country` → e.g. `"Dakar, Senegal"` | See the relaxed rule below — no country-code conversion needed. |
+| `application_deadline` | `RecruitmentAdvertList.Closing_Date` | Already `YYYY-MM-DD` in the OData feed — pass it through unchanged. |
+
+**The location rule was relaxed to fit the real data.** Dynamics has the duty station as free text (`Dakar`, `Nakuru`) and its CountryRegion codes are 3-letter (`KEN`), so demanding a 2-letter ISO code would have forced a pointless conversion table. The API now accepts **either** a 2-letter code (the careers page displays it as the full country name, as before) **or** free text up to 120 characters, which the page displays as sent. Recommended: send `"Duty_Station, Duty_Country"` — richer for candidates, zero conversion work.
+
+**When to send is as important as what to send.** Two gates on the Dynamics side:
+
+- Only push jobs whose advert actually exists — `Advert_Created` is true *and* the advert has been advertised (`Advertised_when` set; note `RTN-00095`'s advert sample has `Advertised_by: ""` and `Advertised_when: "0001-01-01"`, i.e. created but not yet advertised).
+- Push on/after `Opening_Date`, not at approval — anything pushed becomes publicly visible immediately, so pushing early would advertise a job before its opening date.
 
 Why translate on the Dynamics side rather than teach WordPress the Dynamics names?
 
@@ -115,12 +125,21 @@ Why translate on the Dynamics side rather than teach WordPress the Dynamics name
 - Dynamics can rename/restructure internally and only this one mapping needs updating — WordPress never has to be redeployed for a Dynamics-side rename.
 - WordPress stays simple: it accepts exactly one shape and rejects anything else, which makes failures obvious instead of silent.
 
-Two conversions deserve explicit attention in the mapping, because they're the most likely sources of bugs:
+**A note on dates:** `Closing_Date` stays machine-readable (`YYYY-MM-DD`) in the API — that's what the open/closed logic sorts and compares on. The *display* format on the careers page ("dd MMM yyyy", e.g. **29 Jun 2026**) is WordPress's rendering job, not something Dynamics should pre-format. To apply it: in wp-admin → **Snippets**, edit the Career Deadline Checker snippet and change the one line
 
-- **Dates**: Dynamics stores full timestamps (`2026-08-31T00:00:00Z`); WordPress wants just the date part, `2026-08-31`. The mapping must format it — and be deliberate about time zones, so a deadline of "midnight Aug 31" doesn't arrive as Aug 30.
-- **Country**: WordPress wants the 2-letter ISO code (`KE`), not the country name (`Kenya`). If Dynamics stores names or its own lookup values, the mapping converts them.
+```php
+$deadline_fmt = $deadline_ts ? date_i18n('F j, Y', $deadline_ts) : '';
+```
 
-If the incoming message is wrong anyway — missing field, 3-letter country code, wrong date format — WordPress **rejects the entire request with a clear error message and changes nothing**. Saving is all-or-nothing: either the complete, valid ad goes onto the site, or nothing does. A faulty message from Dynamics can never leave a half-finished ad on the careers page. Those errors should be logged on the Dynamics side (section 8).
+to
+
+```php
+$deadline_fmt = $deadline_ts ? date_i18n('d M Y', $deadline_ts) : '';
+```
+
+("June 29, 2026" becomes "29 Jun 2026" everywhere on the careers page; no other change needed — the cached page rebuilds within the hour or on the next ad save).
+
+If the incoming message is wrong anyway — missing field, empty location, wrong date format — WordPress **rejects the entire request with a clear error message and changes nothing**. Saving is all-or-nothing: either the complete, valid ad goes onto the site, or nothing does. A faulty message from Dynamics can never leave a half-finished ad on the careers page. Those errors should be logged on the Dynamics side (section 8).
 
 ---
 
@@ -159,12 +178,12 @@ The Careers API plugin registers **only** these two job-ad endpoints — it cont
 
 Walking through one PUT from start to finish:
 
-1. **The request arrives over HTTPS** at `/wp-json/careers-api/v1/jobs/JOB-2026-014`, carrying the JSON and the Basic-auth credentials.
+1. **The request arrives over HTTPS** at `/wp-json/careers-api/v1/jobs/RTN-00095`, carrying the JSON and the Basic-auth credentials.
 2. **WordPress verifies the credentials.** The username + application password are checked; WordPress now knows this is the `dynamics-integration` user. No valid credentials → the request is refused (401) and nothing further happens.
 3. **The permission check runs.** Does this user hold the *"may write job ads"* permission? The integration role does; any other account gets refused (403).
 4. **The JSON is validated field by field.** Title present? Description present? Location exactly 2 letters? Deadline a real date in `YYYY-MM-DD` form? Any failure → the whole request is rejected (400) with a message naming the problem field, and the site is untouched.
 5. **The content is sanitized.** The description and short description pass through WordPress's standard HTML filter, which keeps normal formatting (paragraphs, lists, links) and strips anything dangerous (scripts). The location is uppercased.
-6. **WordPress looks up the job ID** — searches for an existing career post whose hidden `_careers_api_job_id` sticky note says `JOB-2026-014` (any status, including trashed, so a previously retracted ad is restored rather than duplicated).
+6. **WordPress looks up the job ID** — searches for an existing career post whose hidden `_careers_api_job_id` sticky note says `RTN-00095` (any status, including trashed, so a previously retracted ad is restored rather than duplicated).
 7. **Create or update:**
    - Not found → a new `career` post is created with status **Published** (or as a hidden **draft** if Test Mode is on — see section 11).
    - Found → that post's title and description are overwritten.
@@ -243,7 +262,7 @@ Non-issues verified: the job-ID lookup is instantaneous at careers-page scale, t
 
 ### Stage 1 — local testing first (no risk to the live site)
 
-Because the live site is high-traffic, first-round testing happens entirely on a developer's localhost copy using a companion plugin, **Careers API — Local Test** (`wp-content/plugins/careers-api-local-test/`). It is an exact twin of the real plugin — same URL path, same JSON contract, same validation and responses — with one difference: **authentication is removed**, so it works on plain HTTP where application passwords aren't available. Two built-in safety catches: it hard-refuses to run on any host that isn't localhost (uploaded to production by mistake, it registers nothing and shows a red error notice), and it pauses itself if the real plugin is enabled on the same site.
+Because the live site is high-traffic, first-round testing happens entirely on a WordPress test copy on the office network (`http://10.176.203.71:81/aphrcnew_jan_2026/`) using a companion plugin, **Careers API — Local Test** (`wp-content/plugins/careers-api-local-test/`). It is an exact twin of the real plugin — same URL path, same JSON contract, same validation and responses — with one difference: **authentication is removed**, so it works on plain HTTP where application passwords aren't available. Two built-in safety catches: it hard-refuses to run on any host that isn't local — localhost or a private-network IP like the test server's (uploaded to production by mistake, it registers nothing and shows a red error notice) — and it pauses itself if the real plugin is enabled on the same site.
 
 The Dynamics team tests against it with **Postman** — the step-by-step walkthrough, including ready-to-paste requests and the full negative-test checklist, is in [`docs/postman-testing-guide.md`](postman-testing-guide.md). A Postman collection built in stage 1 works unchanged in stage 2: only the base URL changes and Basic Auth credentials are added.
 
@@ -262,7 +281,7 @@ Going live afterwards is just: untick Test Mode, then have Dynamics re-send the 
 5. Re-send with a past deadline → the ad moves to the **Closed** tab by itself.
 6. `DELETE TEST-001` → the ad vanishes from both tabs (recoverable from trash in wp-admin).
 7. Re-send the `PUT` for `TEST-001` after the delete → the *original* ad is restored and republished, not duplicated.
-8. Negative tests: no password → **401**; a normal WordPress user's credentials → **403**; a 3-letter country code or malformed date → **400** with a clear message. Also confirm the mel API still rejects all writes with its usual **405** read-only error (it should — it was never modified).
+8. Negative tests: no password → **401**; a normal WordPress user's credentials → **403**; an empty location or malformed date → **400** with a clear message. Also confirm the mel API still rejects all writes with its usual **405** read-only error (it should — it was never modified).
 9. Reliability test: send a PUT while WordPress is deliberately unreachable, confirm the Dynamics retry queue delivers it once the site is back.
 
 ---

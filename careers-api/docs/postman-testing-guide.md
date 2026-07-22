@@ -8,7 +8,7 @@
 
 | Stage | Where | Plugin used | Authentication |
 |---|---|---|---|
-| **1. Local** | The developer's WAMP copy (`localhost`) | **Careers API — Local Test** | **None** — requests need no credentials |
+| **1. Local** | The WAMP test server on the APHRC network: `http://10.176.203.71:81/aphrcnew_jan_2026/` | **Careers API — Local Test** | **None** — requests need no credentials |
 | **2. Staging / production** | The live HTTPS site | **Careers API** (the real one) | Basic Auth with the integration user + application password |
 
 The local test plugin is an exact twin of the real one — same URL path, same JSON contract, same validation, same responses — with authentication removed so testing works on plain HTTP without WordPress application passwords. It physically refuses to run on any non-localhost site, so it cannot be misused in production.
@@ -35,13 +35,15 @@ The local test plugin is an exact twin of the real one — same URL path, same J
 
 | Variable | Initial value |
 |---|---|
-| `base_url` | `http://localhost/aphrcnew_jan_2026/wp-json` |
+| `base_url` | `http://10.176.203.71:81/aphrcnew_jan_2026/wp-json` |
 | `job_id` | `TEST-001` |
 
-> **If the site URL differs on your machine**, adjust `base_url` — it's everything before `/wp-json` plus `/wp-json`.
+> **The test server is on the APHRC network** at `10.176.203.71:81` — a private LAN address, so anyone on the office network (or VPN) can send Postman requests to it from their own machine; nothing is exposed to the internet. If it doesn't respond from another machine, the usual culprits are the WAMP machine's Windows Firewall blocking inbound port 81, or WAMP still in "offline" (localhost-only) mode.
+>
+> **If the site URL ever changes**, adjust `base_url` — it's everything before `/wp-json` plus `/wp-json`. The exact live value is also shown in the yellow admin banner on the test site's wp-admin dashboard.
 >
 > **If you get a 404 on every request**, the WordPress "permalinks" setting is probably on *Plain*. Either fix it in wp-admin (Settings → Permalinks → choose "Post name" → Save) or use this alternative base URL form, which always works:
-> `http://localhost/aphrcnew_jan_2026/index.php?rest_route=` — and then request e.g. `{{base_url}}/careers-api/v1/jobs/{{job_id}}` becomes `http://localhost/aphrcnew_jan_2026/index.php?rest_route=/careers-api/v1/jobs/TEST-001`.
+> `http://10.176.203.71:81/aphrcnew_jan_2026/index.php?rest_route=` — and then e.g. the jobs request becomes `http://10.176.203.71:81/aphrcnew_jan_2026/index.php?rest_route=/careers-api/v1/jobs/TEST-001`.
 
 ### Request 1 — Create a job ad
 
@@ -52,13 +54,15 @@ The local test plugin is an exact twin of the real one — same URL path, same J
 
 ```json
 {
-  "title": "Research Officer – Data Science",
-  "description": "<p>APHRC seeks a Research Officer to join the Data Science team.</p><h3>Responsibilities</h3><ul><li>Analyse survey data</li><li>Prepare reports</li></ul><h3>How to apply</h3><p>Apply through the portal by the deadline.</p>",
-  "short_description": "<p>Join the Data Science team as a Research Officer in Nairobi.</p>",
-  "location": "KE",
+  "title": "CONSULTANCY TO EVALUATE THE EAST AFRICAN COMMUNITY PANDEMIC PREPAREDNESS PROJECT",
+  "description": "<p class=\"ql-align-justify\"><strong>Background</strong></p><p class=\"ql-align-justify\">The African Population and Health Research Center (APHRC) is a premier research-to-policy institution...</p><h3><strong>Application Process</strong></h3><ul><li>A cover letter outlining eligibility for the assignment.</li><li>A technical proposal detailing the proposed approach.</li></ul>",
+  "short_description": "<p>Consultancy to evaluate the EAC Pandemic Preparedness Project (2023–2026).</p>",
+  "location": "Dakar, Senegal",
   "application_deadline": "2026-12-31"
 }
 ```
+
+> `location` accepts either free text like `"Dakar, Senegal"` (recommended: `Duty_Station, Duty_Country` — displayed as sent) or a 2-letter ISO code like `"KE"` (displayed as the full country name). In real use, `{{job_id}}` is the `Recruitment_Need_Code` (e.g. `RTN-00095`) and the deadline is `RecruitmentAdvertList.Closing_Date`, already in `YYYY-MM-DD` form.
 
 - **Send.** Expected: **`201 Created`** with a body like:
 
@@ -67,7 +71,7 @@ The local test plugin is an exact twin of the real one — same URL path, same J
   "id": 1234,
   "external_id": "TEST-001",
   "post_status": "publish",
-  "permalink": "http://localhost/aphrcnew_jan_2026/career/research-officer-data-science/",
+  "permalink": "http://10.176.203.71:81/aphrcnew_jan_2026/career/consultancy-to-evaluate-the-east-african-community-pandemic-preparedness-project/",
   "test_mode": false,
   "local_test": true
 }
@@ -106,7 +110,7 @@ Send Request 1 again unchanged.
 
 | Send | Expect |
 |---|---|
-| Request 1 with `"location": "KEN"` (3 letters) | **`400`** — error names the `location` field |
+| Request 1 with `"location": ""` (empty) | **`400`** — error names the `location` field |
 | Request 1 with `"application_deadline": "31/12/2026"` | **`400`** — error names the deadline field |
 | Request 1 with `"title"` removed | **`400`** — error names the `title` field |
 | `DELETE {{base_url}}/careers-api/v1/jobs/NO-SUCH-ID` | **`404`** — "No job ad found for that external_id" |
@@ -140,5 +144,5 @@ The Postman requests above are exactly what the .NET integration must produce:
 
 ## 6. Safety notes
 
-- The Local Test plugin has **no authentication by design** and hard-refuses to run on any host that isn't `localhost` / `127.0.0.1` / `*.local` / `*.test`. Even so: it must never be copied to staging or production. It is not part of the deployable site.
+- The Local Test plugin has **no authentication by design** and hard-refuses to run on any host that isn't local: `localhost` / `127.0.0.1` / `*.local` / `*.test`, or a **private-network IP address** (such as the test server's `10.176.203.71` — private addresses are unreachable from the internet, so they can never be the production site). Even so: it must never be copied to staging or production. It is not part of the deployable site.
 - The real Careers API plugin is the only one that ships. The single difference between the two is the authentication check, so passing tests locally is meaningful.

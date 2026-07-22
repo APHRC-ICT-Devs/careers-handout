@@ -59,8 +59,15 @@ class Careers_API_Endpoint {
 		$title       = sanitize_text_field( $request->get_param( 'title' ) );
 		$content     = wp_kses_post( $request->get_param( 'description' ) );
 		$short       = wp_kses_post( (string) $request->get_param( 'short_description' ) );
-		$location    = strtoupper( sanitize_text_field( $request->get_param( 'location' ) ) );
 		$deadline    = $request->get_param( 'application_deadline' );
+
+		// Location accepts either a 2-letter ISO code (the careers page shows
+		// it as the full country name) or free text like "Dakar, Senegal"
+		// (shown as sent). Only codes are uppercased.
+		$location = sanitize_text_field( $request->get_param( 'location' ) );
+		if ( preg_match( '/^[A-Za-z]{2}$/', $location ) ) {
+			$location = strtoupper( $location );
+		}
 
 		$existing = $this->find_by_external_id( $external_id );
 
@@ -158,7 +165,7 @@ class Careers_API_Endpoint {
 			],
 			'location'             => [
 				'required'          => true,
-				'validate_callback' => fn( $v ) => is_string( $v ) && preg_match( '/^[A-Za-z]{2}$/', $v ),
+				'validate_callback' => fn( $v ) => is_string( $v ) && trim( $v ) !== '' && mb_strlen( $v ) <= 120,
 			],
 			'application_deadline' => [
 				'required'          => true,

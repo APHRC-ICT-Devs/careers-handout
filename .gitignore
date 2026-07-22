@@ -1,0 +1,3 @@
+# Detailed integration docs stay out of the public repo (internal hostnames/IPs).
+# Canonical copies live in the private careers-api-local-test repo and the plugin folders.
+careers-api/docs/

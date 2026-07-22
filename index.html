@@ -304,7 +304,7 @@
   <h2>The endpoint</h2>
   <div class="endpoint">
     <div class="mono">https://&lt;site&gt;/wp-json/careers-api/v1/jobs/<strong>{job-id}</strong></div>
-    <div class="note"><span class="mono">{job-id}</span> is <em>Dynamics' own</em> job reference (e.g. <span class="mono">JOB-2026-014</span>). It must never change for a given job — WordPress stores it on the ad (meta field <span class="mono">_careers_api_job_id</span>) and matches every later message by it. WordPress internals are never exposed.</div>
+    <div class="note"><span class="mono">{job-id}</span> is <em>Dynamics' own</em> job reference (e.g. <span class="mono">RTN-00095</span>). It must never change for a given job — WordPress stores it on the ad (meta field <span class="mono">_careers_api_job_id</span>) and matches every later message by it. WordPress internals are never exposed.</div>
   </div>
 
   <div class="verbs">
@@ -325,16 +325,17 @@
     <table>
       <thead><tr><th>Field</th><th>Required</th><th>Format</th><th>Notes</th></tr></thead>
       <tbody>
-        <tr><td>title</td><td class="req">yes</td><td>text</td><td>the job title shown everywhere</td></tr>
-        <tr><td>description</td><td class="req">yes</td><td>text / HTML</td><td>the full advert, shown on the job's own page. Normal formatting (paragraphs, lists, links) survives; WordPress auto-removes anything that could run as code (scripts, embeds) before saving — Dynamics doesn't need to clean it</td></tr>
+        <tr><td>title</td><td class="req">yes</td><td>text</td><td>= <code>RecruitmentAdvertList.Job_Title</code> (the advert's title, not <code>Position_Title</code>)</td></tr>
+        <tr><td>description</td><td class="req">yes</td><td>text / HTML</td><td>= <code>Job_Description</code> (background) + stitched <code>Expected_Responsibilities</code> + <code>Required_Qualifications</code> lines + footer/special notice. Quill formatting survives; WordPress auto-removes anything that could run as code — Dynamics doesn't need to clean it</td></tr>
         <tr><td>short_description</td><td class="opt">no</td><td>text / HTML</td><td>the short teaser under the title on the careers listing card. Optional — if not sent, the card just shows title, deadline &amp; location. Same auto-cleaning applies</td></tr>
-        <tr><td>location</td><td class="req">yes</td><td>2-letter ISO code</td><td><code>KE</code>, not "Kenya"</td></tr>
-        <tr><td>application_deadline</td><td class="req">yes</td><td><code>YYYY-MM-DD</code></td><td>date only — convert from OData timestamp, mind the timezone</td></tr>
+        <tr><td>location</td><td class="req">yes</td><td>2-letter code or free text (≤120 chars)</td><td>send <code>Duty_Station, Duty_Country</code> e.g. <code>Dakar, Senegal</code> (shown as sent); a code like <code>KE</code> is shown as the country name</td></tr>
+        <tr><td>application_deadline</td><td class="req">yes</td><td><code>YYYY-MM-DD</code></td><td>= <code>Closing_Date</code>, already in this form — pass through unchanged; display format is WordPress's job</td></tr>
       </tbody>
     </table>
   </div>
 
   <div class="callout"><strong>Field-name rule:</strong> WordPress defines this contract; Dynamics maps its own OData field names into it when building the message. Internal renames on the Dynamics side only ever touch that one mapping. Invalid input is rejected whole (400, named field) — nothing half-saves.</div>
+  <div class="callout"><strong>When to send:</strong> only jobs whose advert exists and has actually been advertised (<code>Advert_Created</code> true and <code>Advertised_when</code> set — not <code>0001-01-01</code>), and only on/after <code>Opening_Date</code> — anything pushed goes public immediately. Deadline display on the careers page ("29 Jun 2026", dd MMM yyyy) is WordPress's rendering job — Dynamics always sends plain <code>YYYY-MM-DD</code>.</div>
 
   <h2>Authentication</h2>
   <div class="table-wrap">
@@ -456,6 +457,28 @@
     Retry <strong>5xx / network failures</strong> with backoff — 5xx = server-side errors, 500–599 (e.g. 500 Internal Server Error, 503 during a restart): the message was fine, WordPress hiccupped, so the same send will succeed later. PUT is safely repeatable.
     Do <strong>not</strong> retry <strong>4xx</strong> — those mean the <em>message or credentials</em> were wrong (400 invalid data, 401 bad password, 403 not allowed), so the same send fails the same way; log it and alert a human.
   </div>
+
+  <h2>How to test</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Stage</th><th>Where</th><th>Setup</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>localhost</td><td>Activate the <strong>Careers API — Local Test</strong> twin plugin (no authentication needed on plain HTTP). The exact endpoint URL appears in a yellow banner on the wp-admin dashboard.</td></tr>
+        <tr><td>2</td><td>live HTTPS site</td><td>Real <strong>Careers API</strong> plugin with <strong>Test Mode</strong> ticked (ads arrive as hidden drafts). Same Postman collection: just change the base URL and add Basic Auth (integration user + application password).</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p style="font-size:14px; margin:12px 0 8px;">The test sequence, in Postman (full walkthrough with ready-to-paste JSON: <span class="mono">docs/postman-testing-guide.md</span>):</p>
+  <ol class="flow">
+    <li><strong>Create:</strong> <code>PUT …/jobs/TEST-001</code> with the 5-field JSON body → <strong>201 Created</strong>; the ad appears under "Open" on the careers page <em>(stage 2 Test Mode: as a draft in wp-admin instead)</em>.</li>
+    <li><strong>Update:</strong> same PUT with a changed title → <strong>200 OK</strong>, same <code>id</code>, still exactly one ad — no duplicate.</li>
+    <li><strong>Close:</strong> same PUT with a past <code>application_deadline</code> → the ad moves to the "Closed" tab by itself.</li>
+    <li><strong>Retract:</strong> <code>DELETE …/jobs/TEST-001</code> → <strong>200</strong>, ad gone from both tabs (recoverable from trash).</li>
+    <li><strong>Repost:</strong> send the original PUT again → the <em>same</em> ad is restored and republished, never duplicated.</li>
+    <li><strong>Break it on purpose:</strong> empty location, wrong date format, or missing title → <strong>400</strong> naming the problem field, nothing saved; DELETE an unknown ID → <strong>404</strong>. Stage 2 extras: no credentials → <strong>401</strong>; a non-integration user → <strong>403</strong>.</li>
+  </ol>
+  <div class="callout">A browser can't test these endpoints (it only sends GET; the API accepts only PUT/DELETE) — but you can sanity-check the route exists by opening <span class="mono">…/wp-json/careers-api/v1</span> in a browser and seeing the <code>jobs</code> route listed.</div>
 
   <h2>Security &amp; performance — reviewed, key flags</h2>
   <div class="table-wrap">
